@@ -1,0 +1,21 @@
+SUBIR TODO EL CONTENIDO DE ESTA CARPETA AL REPOSITORIO.
+
+Incluye:
+- .github/workflows/practica03-maven.yml
+- .gitignore
+- README.md
+- LICENSE
+- PRACTICA_03_AUTOMATIC_BUILD.md
+- docker-compose.yml
+- scripts/
+- backend/ (pom.xml, Maven Wrapper, Dockerfile, src/main y src/test)
+- frontend/ (package files, Angular config, Dockerfile, nginx y src)
+
+NO subir:
+- .git/
+- backend/target/
+- frontend/node_modules/
+- frontend/dist/
+- frontend/.angular/
+- archivos del IDE (.idea, .vscode salvo configuración intencional)
+- capturas/evidencias temporales
