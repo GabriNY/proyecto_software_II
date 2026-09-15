@@ -19,9 +19,23 @@ function Write-Section([string]$Title) {
 function Invoke-LoggedCommand([string]$Command) {
     Write-Host "`n> $Command" -ForegroundColor Cyan
     "> $Command" | Tee-Object -FilePath $LogFile -Append
-    Invoke-Expression "$Command 2>&1" | Tee-Object -FilePath $LogFile -Append
-    if ($LASTEXITCODE -ne 0) {
-        throw "El comando falló con código $LASTEXITCODE: $Command"
+
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+
+    try {
+        Invoke-Expression "$Command 2>&1" |
+            ForEach-Object { "$_" } |
+            Tee-Object -FilePath $LogFile -Append
+
+        $ExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+
+    if ($ExitCode -ne 0) {
+        throw "El comando falló con código ${ExitCode}: $Command"
     }
 }
 
