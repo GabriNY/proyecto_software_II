@@ -1,6 +1,16 @@
 package me.zhulin.shopapi.service.impl;
-
+import java.util.List;
+import me.zhulin.shopapi.entity.OrderMain;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.any;
 import me.zhulin.shopapi.entity.Cart;
+import me.zhulin.shopapi.entity.OrderMain;
 import me.zhulin.shopapi.entity.ProductInOrder;
 import me.zhulin.shopapi.entity.User;
 import me.zhulin.shopapi.exception.MyException;
@@ -133,4 +143,86 @@ public class CartServiceImplTest {
 
         Mockito.verify(productInOrderRepository, Mockito.times(1)).save(productInOrder);
     }
+    
+    @Test
+    void mergeLocalCartSumaCantidadesDeProductoExistente() {
+        // ARRANGE
+        // El setUp() ya creó un producto con ID "1"
+        // y cantidad 10 dentro del carrito.
+
+        ProductInOrder nuevoProducto = new ProductInOrder();
+        nuevoProducto.setProductId("1");
+        nuevoProducto.setCount(3);
+
+        // ACT
+        cartService.mergeLocalCart(
+            List.of(nuevoProducto),
+            user
+        );
+
+        // ASSERT
+        assertEquals(13, productInOrder.getCount());
+
+        verify(productInOrderRepository, times(1))
+            .save(productInOrder);
+
+        verify(cartRepository, times(1))
+            .save(cart);
+    }
+    @Test
+    void getCartDevuelveCarritoDelUsuario() {
+        // ARRANGE
+        // El setUp() ya creó user y cart.
+
+        // ACT
+        Cart resultado = cartService.getCart(user);
+
+        // ASSERT
+        assertSame(cart, resultado);
+    }
+    @Test
+    void deleteProductoInexistenteNoEliminaNada() {
+        // ARRANGE
+        String productoInexistente = "999";
+
+        // ACT
+        cartService.delete(productoInexistente, user);
+
+        // ASSERT
+        verify(productInOrderRepository, never())
+            .deleteById(any());
+
+        assertEquals(1, cart.getProducts().size());
+    }
+    
+    @Test
+    void checkoutActualizaPedidoYStock() {
+        // ARRANGE
+        String productId = productInOrder.getProductId();
+        Integer cantidad = productInOrder.getCount();
+
+        // ACT
+        cartService.checkout(user);
+
+        // ASSERT
+
+        // Se solicita guardar el pedido
+        verify(orderRepository, times(1))
+            .save(any(OrderMain.class));
+
+        // Se solicita disminuir el stock
+        verify(productService, times(1))
+            .decreaseStock(productId, cantidad);
+
+        // El producto deja de apuntar al carrito
+        assertNull(productInOrder.getCart());
+
+        // El producto queda asociado al pedido
+        assertNotNull(productInOrder.getOrderMain());
+
+        // Se solicita guardar el producto actualizado
+        verify(productInOrderRepository, times(1))
+            .save(productInOrder);
+    }
+
 }
