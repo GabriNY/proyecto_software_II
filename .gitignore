@@ -1,6 +1,11 @@
 # Backend
 backend/target/
-
+# Archivos generados por Maven y pruebas
+backend/effective-pom
+backend/resultado-pruebas.txt
+# Maven - Functional Tests
+functional-tests/target/
+functional-tests/hs_err_pid7592.log
 # Frontend
 frontend/node_modules/
 frontend/dist/
