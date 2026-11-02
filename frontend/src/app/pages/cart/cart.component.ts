@@ -41,9 +41,14 @@ export class CartComponent implements OnInit, OnDestroy, AfterContentChecked {
     }
 
     ngOnInit() {
-        this.cartService.getCart().subscribe(prods => {
-            this.productInOrders = prods;
-        });
+        console.log('Usuario actual:', !!this.currentUser);
+
+            this.cartService.getCart().subscribe(prods => {
+                console.log('Productos recibidos:', prods);
+                console.log('Cantidad:', prods?.length);
+
+                this.productInOrders = prods;
+            });
 
         this.sub = this.updateTerms.pipe(
             // wait 300ms after each keystroke before considering the term
