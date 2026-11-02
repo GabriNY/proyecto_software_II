@@ -1,5 +1,5 @@
 package me.zhulin.shopapi.entity;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -74,7 +74,7 @@ public class ProductInOrder {
     @Min(1)
     private Integer count;
 
-
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     public ProductInOrder(ProductInfo productInfo, Integer quantity) {
         this.productId = productInfo.getProductId();
         this.productName = productInfo.getProductName();
