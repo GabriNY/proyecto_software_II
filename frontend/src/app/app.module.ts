@@ -1,5 +1,5 @@
 import {BrowserModule} from '@angular/platform-browser';
-import {NgModule} from '@angular/core';
+import {NgModule, provideZoneChangeDetection} from '@angular/core';
 
 import {AppComponent} from './app.component';
 import {NavigationComponent} from './parts/navigation/navigation.component';
@@ -46,6 +46,7 @@ import {ProductEditComponent} from './pages/product-edit/product-edit.component'
     ],
     providers: [
         CookieService,
+        provideZoneChangeDetection(),
         provideHttpClient(withInterceptorsFromDi()),
         {provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true},
         {provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true}],
