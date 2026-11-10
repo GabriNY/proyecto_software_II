@@ -1,5 +1,6 @@
 package com.shop.tests;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -122,5 +123,103 @@ public class CatalogFunctionalTest {
         assertEquals("Price: $30.00",
                 coreJava.findElement(By.xpath(".//p[strong[normalize-space(.)='Price:']]")).getText().trim());
         System.out.println("CP-01: Catálogo visible -> " + nombresVisibles());
+    }
+
+        @Test
+    @DisplayName("CP-02: El menú permite entrar a las cuatro categorías")
+    void cp02EntrarACategorias() {
+        abrirCatalogo();
+
+        entrarCategoria("Books", 0);
+        assertEquals("Core Java", nombresVisibles().get(0));
+
+        entrarCategoria("Food", 1);
+        assertEquals("Chicken", nombresVisibles().get(0));
+
+        entrarCategoria("Clothes", 2);
+        assertEquals("T-shirt", nombresVisibles().get(0));
+
+        entrarCategoria("Drink", 3);
+        assertEquals("Coca Cola", nombresVisibles().get(0));
+        assertTrue(driver.getCurrentUrl().endsWith("/category/3"));
+        System.out.println("CP-02: Se entró a Books, Food, Clothes y Drink");
+    }
+
+    @Test
+    @DisplayName("CP-03: El detalle muestra los datos del producto y calcula el subtotal")
+    void cp03ConsultarDetalle() {
+        abrirCatalogo();
+
+        // Act: se entra al detalle con el botón "Get It!" de Core Java
+        wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("//a[@href='/product/B0001' and normalize-space(.)='Get It!']"))).click();
+        wait.until(ExpectedConditions.urlContains("/product/B0001"));
+        wait.until(ExpectedConditions.textToBe(By.cssSelector("h4.card-title"), "Core Java"));
+
+        // Assert: datos del producto con cantidad inicial 1
+        assertEquals("Product Detail", driver.findElement(TITULO).getText().trim());
+        assertEquals("$30.00", driver.findElement(By.id("price")).getText().trim());
+        assertEquals("1", driver.findElement(By.name("count")).getAttribute("value"));
+        assertEquals("$30.00", driver.findElement(By.id("subtotal")).getText().trim());
+
+        // Act: se cambia la cantidad a 3
+        WebElement cantidad = driver.findElement(By.name("count"));
+        cantidad.clear();
+        cantidad.sendKeys("3");
+
+        // Assert: subtotal = 3 x $30.00 y el botón para comprar está disponible
+        wait.until(ExpectedConditions.textToBe(By.id("subtotal"), "$90.00"));
+        assertEquals("$90.00", driver.findElement(By.id("subtotal")).getText().trim());
+        assertTrue(driver.findElement(
+                By.xpath("//button[@type='submit' and contains(., 'Add to Cart')]")).isEnabled());
+        System.out.println("CP-03: Detalle de Core Java correcto, subtotal con 3 unidades = $90.00");
+    }
+
+    @Test
+    @DisplayName("CP-04: La categoría Books muestra solo sus productos y marca el no disponible")
+    void cp04ProductosDeUnaCategoria() {
+        abrirCatalogo();
+        entrarCategoria("Books", 0);
+
+        // Books tiene 5 productos y se muestran de 3 en 3 -> 2 páginas
+        assertEquals(2, driver.findElements(NUMEROS_DE_PAGINA).size());
+        List<String> productos = new ArrayList<>(nombresVisibles());
+
+        // Head First (B0003) tiene product_status = 1 -> Unavailable y sin "Get It!"
+        WebElement headFirst = tarjeta("Head First");
+        WebElement noDisponible = headFirst.findElement(By.xpath(".//a[normalize-space(.)='Unavailable']"));
+        assertTrue(noDisponible.getAttribute("class").contains("disabled"));
+        assertTrue(headFirst.findElements(By.xpath(".//a[normalize-space(.)='Get It!']")).isEmpty());
+        assertFalse(tarjeta("Core Java").findElements(By.xpath(".//a[normalize-space(.)='Get It!']")).isEmpty());
+
+        irAPagina("2", 2);
+        productos.addAll(nombresVisibles());
+
+        assertEquals(List.of("Core Java", "Spring In Action", "Head First", "Effective Java", "Thinking in Java"),
+                productos);
+        System.out.println("CP-04: Books -> " + productos);
+    }
+
+    @Test
+    @DisplayName("CP-05: La paginación permite navegar entre los productos del catálogo")
+    void cp05NavegarEntreProductos() {
+        abrirCatalogo();
+
+        // Primera página: 12 productos / 3 por página = 4 páginas, Previous deshabilitado
+        assertEquals("1", driver.findElement(PAGINA_ACTIVA).getText().trim());
+        assertEquals(4, driver.findElements(NUMEROS_DE_PAGINA).size());
+        assertFalse(driver.findElements(enlaceDeshabilitado("Previous")).isEmpty());
+
+        irAPagina("Next", 2);
+        assertEquals(List.of("Effective Java", "Thinking in Java", "T-shirt"), nombresVisibles());
+
+        irAPagina("4", 4);
+        assertEquals(3, nombresVisibles().size());
+        assertEquals("Starbucks Violet Drink", nombresVisibles().get(0));
+        assertFalse(driver.findElements(enlaceDeshabilitado("Next")).isEmpty());
+
+        irAPagina("Previous", 3);
+        assertEquals(List.of("Shirts", "Coats", "Coca Cola"), nombresVisibles());
+        System.out.println("CP-05: Navegación 1 -> 2 -> 4 -> 3 correcta");
     }
 }
