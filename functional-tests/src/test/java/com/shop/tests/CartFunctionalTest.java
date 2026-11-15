@@ -1,5 +1,5 @@
 
-package test.java.com.shop.tests;
+package com.shop.tests;
 
 import org.junit.jupiter.api.*;
 import org.openqa.selenium.*;
