@@ -11,6 +11,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/.angular/
 frontend/out-tsc/
+# Credenciales de pruebas de rendimiento
+performance-tests/usuarios-carga.csv
+
+# Archivos de resultados sin revisar
+performance-tests/*.jtl
+performance-tests/*.csv
 
 # IDE
 .idea/
