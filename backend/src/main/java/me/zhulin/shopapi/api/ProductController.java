@@ -33,7 +33,7 @@ public class ProductController {
     }
 
     @PostMapping("/seller/product/new")
-    public ResponseEntity<?> create(
+    public ResponseEntity<Object> create(
             @Valid @RequestBody ProductInfo product,
             BindingResult bindingResult) {
 
@@ -50,7 +50,7 @@ public class ProductController {
     }
 
     @PutMapping("/seller/product/{id}/edit")
-    public ResponseEntity<?> edit(
+    public ResponseEntity<Object> edit(
             @PathVariable("id") String productId,
             @Valid @RequestBody ProductInfo product,
             BindingResult bindingResult) {
