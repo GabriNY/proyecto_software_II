@@ -1,6 +1,5 @@
 package me.zhulin.shopapi.service.impl;
 
-
 import me.zhulin.shopapi.entity.ProductInfo;
 import me.zhulin.shopapi.enums.ProductStatusEnum;
 import me.zhulin.shopapi.enums.ResultEnum;
@@ -8,34 +7,35 @@ import me.zhulin.shopapi.exception.MyException;
 import me.zhulin.shopapi.repository.ProductInfoRepository;
 import me.zhulin.shopapi.service.CategoryService;
 import me.zhulin.shopapi.service.ProductService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Created By Zhu Lin on 3/10/2018.
- */
 @Service
 public class ProductServiceImpl implements ProductService {
 
-    @Autowired
-    ProductInfoRepository productInfoRepository;
+    private static final int ESTADO_MAXIMO = ProductStatusEnum.DOWN.getCode();
 
-    @Autowired
-    CategoryService categoryService;
+    private final ProductInfoRepository productInfoRepository;
+    private final CategoryService categoryService;
+
+    public ProductServiceImpl(ProductInfoRepository productInfoRepository,
+                              CategoryService categoryService) {
+        this.productInfoRepository = productInfoRepository;
+        this.categoryService = categoryService;
+    }
 
     @Override
     public ProductInfo findOne(String productId) {
-
-        ProductInfo productInfo = productInfoRepository.findByProductId(productId);
-        return productInfo;
+        return productInfoRepository.findByProductId(productId);
     }
 
     @Override
     public Page<ProductInfo> findUpAll(Pageable pageable) {
-        return productInfoRepository.findAllByProductStatusOrderByProductIdAsc(ProductStatusEnum.UP.getCode(),pageable);
+        return productInfoRepository
+                .findAllByProductStatusOrderByProductIdAsc(
+                        ProductStatusEnum.UP.getCode(), pageable);
     }
 
     @Override
@@ -44,73 +44,55 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductInfo> findAllInCategory(Integer categoryType, Pageable pageable) {
-        return productInfoRepository.findAllByCategoryTypeOrderByProductIdAsc(categoryType, pageable);
+    public Page<ProductInfo> findAllInCategory(Integer categoryType,
+                                               Pageable pageable) {
+        return productInfoRepository
+                .findAllByCategoryTypeOrderByProductIdAsc(
+                        categoryType, pageable);
     }
 
     @Override
     @Transactional
     public void increaseStock(String productId, int amount) {
-        ProductInfo productInfo = findOne(productId);
-        if (productInfo == null) throw new MyException(ResultEnum.PRODUCT_NOT_EXIST);
-
-        int update = productInfo.getProductStock() + amount;
-        productInfo.setProductStock(update);
+        ProductInfo productInfo = buscarExistente(productId);
+        productInfo.setProductStock(productInfo.getProductStock() + amount);
         productInfoRepository.save(productInfo);
     }
 
     @Override
     @Transactional
     public void decreaseStock(String productId, int amount) {
-        ProductInfo productInfo = findOne(productId);
-        if (productInfo == null) throw new MyException(ResultEnum.PRODUCT_NOT_EXIST);
+        ProductInfo productInfo = buscarExistente(productId);
 
-        int update = productInfo.getProductStock() - amount;
-        if(update <= 0) throw new MyException(ResultEnum.PRODUCT_NOT_ENOUGH );
+        int nuevoStock = productInfo.getProductStock() - amount;
 
-        productInfo.setProductStock(update);
+        if (nuevoStock <= 0) {
+            throw new MyException(ResultEnum.PRODUCT_NOT_ENOUGH);
+        }
+
+        productInfo.setProductStock(nuevoStock);
         productInfoRepository.save(productInfo);
     }
 
     @Override
     @Transactional
     public ProductInfo offSale(String productId) {
-        ProductInfo productInfo = findOne(productId);
-        if (productInfo == null) throw new MyException(ResultEnum.PRODUCT_NOT_EXIST);
-
-        if (productInfo.getProductStatus() == ProductStatusEnum.DOWN.getCode()) {
-            throw new MyException(ResultEnum.PRODUCT_STATUS_ERROR);
-        }
-
-        //更新
-        productInfo.setProductStatus(ProductStatusEnum.DOWN.getCode());
-        return productInfoRepository.save(productInfo);
+        return cambiarEstado(productId, ProductStatusEnum.DOWN);
     }
 
     @Override
     @Transactional
     public ProductInfo onSale(String productId) {
-        ProductInfo productInfo = findOne(productId);
-        if (productInfo == null) throw new MyException(ResultEnum.PRODUCT_NOT_EXIST);
-
-        if (productInfo.getProductStatus() == ProductStatusEnum.UP.getCode()) {
-            throw new MyException(ResultEnum.PRODUCT_STATUS_ERROR);
-        }
-
-        //更新
-        productInfo.setProductStatus(ProductStatusEnum.UP.getCode());
-        return productInfoRepository.save(productInfo);
+        return cambiarEstado(productId, ProductStatusEnum.UP);
     }
 
     @Override
     public ProductInfo update(ProductInfo productInfo) {
-
-        // if null throw exception
         categoryService.findByCategoryType(productInfo.getCategoryType());
-        if(productInfo.getProductStatus() > 1) {
+
+        if (productInfo.getProductStatus() > ESTADO_MAXIMO) {
             throw new MyException(ResultEnum.PRODUCT_STATUS_ERROR);
         }
-
 
         return productInfoRepository.save(productInfo);
     }
@@ -122,11 +104,29 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void delete(String productId) {
-        ProductInfo productInfo = findOne(productId);
-        if (productInfo == null) throw new MyException(ResultEnum.PRODUCT_NOT_EXIST);
-        productInfoRepository.delete(productInfo);
-
+        productInfoRepository.delete(buscarExistente(productId));
     }
 
+    private ProductInfo buscarExistente(String productId) {
+        ProductInfo productInfo = findOne(productId);
 
+        if (productInfo == null) {
+            throw new MyException(ResultEnum.PRODUCT_NOT_EXIST);
+        }
+
+        return productInfo;
+    }
+
+    private ProductInfo cambiarEstado(String productId,
+                                       ProductStatusEnum nuevoEstado) {
+        ProductInfo productInfo = buscarExistente(productId);
+
+        if (nuevoEstado.getCode().equals(productInfo.getProductStatus())) {
+            throw new MyException(ResultEnum.PRODUCT_STATUS_ERROR);
+        }
+
+        productInfo.setProductStatus(nuevoEstado.getCode());
+
+        return productInfoRepository.save(productInfo);
+    }
 }
