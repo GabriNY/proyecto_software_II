@@ -1,6 +1,7 @@
 package me.zhulin.shopapi.service.impl;
 
-
+import java.util.Collection;
+import java.util.Optional;
 import me.zhulin.shopapi.entity.Cart;
 import me.zhulin.shopapi.entity.OrderMain;
 import me.zhulin.shopapi.entity.ProductInOrder;
@@ -10,92 +11,130 @@ import me.zhulin.shopapi.exception.MyException;
 import me.zhulin.shopapi.repository.CartRepository;
 import me.zhulin.shopapi.repository.OrderRepository;
 import me.zhulin.shopapi.repository.ProductInOrderRepository;
-import me.zhulin.shopapi.repository.UserRepository;
 import me.zhulin.shopapi.service.CartService;
 import me.zhulin.shopapi.service.ProductService;
-import me.zhulin.shopapi.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Collection;
-import java.util.Optional;
-import java.util.Set;
 
 /**
  * Created By Zhu Lin on 3/11/2018.
  */
 @Service
 public class CartServiceImpl implements CartService {
-    @Autowired
-    ProductService productService;
-    @Autowired
-    OrderRepository orderRepository;
-    @Autowired
-    UserRepository userRepository;
+    
+    private final ProductService productService;
+    private final OrderRepository orderRepository;
+    private final ProductInOrderRepository productInOrderRepository;
+    private final CartRepository cartRepository;
+    public CartServiceImpl(
+        ProductService productService,
+        OrderRepository orderRepository,
+        ProductInOrderRepository productInOrderRepository,
+        CartRepository cartRepository) {
 
-    @Autowired
-    ProductInOrderRepository productInOrderRepository;
-    @Autowired
-    CartRepository cartRepository;
-    @Autowired
-    UserService userService;
+        this.productService = productService;
+        this.orderRepository = orderRepository;
+        this.productInOrderRepository = productInOrderRepository;
+        this.cartRepository = cartRepository;
+    }
+
 
     @Override
     public Cart getCart(User user) {
         return user.getCart();
     }
 
+        
     @Override
     @Transactional
-    public void mergeLocalCart(Collection<ProductInOrder> productInOrders, User user) {
-        Cart finalCart = user.getCart();
-        productInOrders.forEach(productInOrder -> {
-            Set<ProductInOrder> set = finalCart.getProducts();
-            Optional<ProductInOrder> old = set.stream().filter(e -> e.getProductId().equals(productInOrder.getProductId())).findFirst();
-            ProductInOrder prod;
-            if (old.isPresent()) {
-                prod = old.get();
-                prod.setCount(productInOrder.getCount() + prod.getCount());
-            } else {
-                prod = productInOrder;
-                prod.setCart(finalCart);
-                finalCart.getProducts().add(prod);
-            }
-            productInOrderRepository.save(prod);
+    public void mergeLocalCart(
+            Collection<ProductInOrder> productInOrders,
+            User user) {
+
+        Cart cart = user.getCart();
+
+        productInOrders.forEach(nuevoProducto -> {
+
+            ProductInOrder producto =
+                    agregarOActualizarProducto(cart, nuevoProducto);
+
+            productInOrderRepository.save(producto);
         });
-        cartRepository.save(finalCart);
 
+        cartRepository.save(cart);
     }
+    private ProductInOrder agregarOActualizarProducto(
+            Cart cart,
+            ProductInOrder nuevoProducto) {
 
+        Optional<ProductInOrder> existente =
+                cart.buscarProducto(nuevoProducto.getProductId());
+
+        if (existente.isPresent()) {
+
+            ProductInOrder producto = existente.get();
+
+            producto.setCount(
+                    producto.getCount() + nuevoProducto.getCount()
+            );
+
+            return producto;
+        }
+
+        nuevoProducto.setCart(cart);
+        cart.getProducts().add(nuevoProducto);
+
+        return nuevoProducto;
+    }
+    
     @Override
     @Transactional
     public void delete(String itemId, User user) {
-        if(itemId.equals("") || user == null) {
-            throw new MyException(ResultEnum.ORDER_STATUS_ERROR);
+
+        if (user == null || itemId == null || itemId.isBlank()) {
+            throw new MyException(ResultEnum.PARAM_ERROR);
         }
 
-        var op = user.getCart().getProducts().stream().filter(e -> itemId.equals(e.getProductId())).findFirst();
-        op.ifPresent(productInOrder -> {
-            productInOrder.setCart(null);
-            productInOrderRepository.deleteById(productInOrder.getId());
-        });
+        user.getCart()
+                .buscarProducto(itemId)
+                .ifPresent(producto -> {
+
+                    producto.setCart(null);
+
+                    productInOrderRepository.deleteById(
+                            producto.getId()
+                    );
+                });
     }
+
 
     @Override
     @Transactional
     public void checkout(User user) {
-        // Creat an order
+
         OrderMain order = new OrderMain(user);
+
         orderRepository.save(order);
 
-        // clear cart's foreign key & set order's foreign key& decrease stock
-        user.getCart().getProducts().forEach(productInOrder -> {
-            productInOrder.setCart(null);
-            productInOrder.setOrderMain(order);
-            productService.decreaseStock(productInOrder.getProductId(), productInOrder.getCount());
-            productInOrderRepository.save(productInOrder);
-        });
+        user.getCart()
+                .getProducts()
+                .forEach(producto ->
+                        moverProductoAlPedido(producto, order));
+    }
+    private void moverProductoAlPedido(
+        ProductInOrder producto,
+        OrderMain order) 
+        {
 
+        producto.setCart(null);
+
+        producto.setOrderMain(order);
+
+        productService.decreaseStock(
+                producto.getProductId(),
+                producto.getCount()
+        );
+
+        productInOrderRepository.save(producto);
     }
 }

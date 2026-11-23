@@ -4,17 +4,14 @@ package me.zhulin.shopapi.api;
 import me.zhulin.shopapi.entity.Cart;
 import me.zhulin.shopapi.entity.ProductInOrder;
 import me.zhulin.shopapi.entity.User;
+import me.zhulin.shopapi.exception.MyException;
 import me.zhulin.shopapi.form.ItemForm;
-import me.zhulin.shopapi.repository.ProductInOrderRepository;
 import me.zhulin.shopapi.service.CartService;
 import me.zhulin.shopapi.service.ProductInOrderService;
 import me.zhulin.shopapi.service.ProductService;
 import me.zhulin.shopapi.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,27 +23,47 @@ import java.util.Collections;
 @RestController
 @RequestMapping("/cart")
 public class CartController {
-    @Autowired
-    CartService cartService;
-    @Autowired
-    UserService userService;
-    @Autowired
-    ProductService productService;
-    @Autowired
-    ProductInOrderService productInOrderService;
-    @Autowired
-    ProductInOrderRepository productInOrderRepository;
+    
+    private final CartService cartService;
 
+    private final UserService userService;
+
+    private final ProductService productService;
+
+    private final ProductInOrderService productInOrderService;
+
+    public CartController(
+            CartService cartService,
+            UserService userService,
+            ProductService productService,
+            ProductInOrderService productInOrderService) {
+
+        this.cartService = cartService;
+        this.userService = userService;
+        this.productService = productService;
+        this.productInOrderService = productInOrderService;
+    }
+
+
+    
     @PostMapping("")
-    public ResponseEntity<Cart> mergeCart(@RequestBody Collection<ProductInOrder> productInOrders, Principal principal) {
+    public ResponseEntity<Cart> mergeCart(
+            @RequestBody Collection<ProductInOrder> productInOrders,
+            Principal principal) {
+
         User user = userService.findOne(principal.getName());
+
         try {
             cartService.mergeLocalCart(productInOrders, user);
-        } catch (Exception e) {
-            ResponseEntity.badRequest().body("Merge Cart Failed");
+
+            return ResponseEntity.ok(cartService.getCart(user));
+
+        } catch (MyException e) {
+
+            return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(cartService.getCart(user));
     }
+
 
     @GetMapping("")
     public Cart getCart(Principal principal) {
@@ -55,16 +72,35 @@ public class CartController {
     }
 
 
+    
     @PostMapping("/add")
-    public boolean addToCart(@RequestBody ItemForm form, Principal principal) {
-        var productInfo = productService.findOne(form.getProductId());
+    public boolean addToCart(
+            @RequestBody ItemForm form,
+            Principal principal) {
+
         try {
-            mergeCart(Collections.singleton(new ProductInOrder(productInfo, form.getQuantity())), principal);
-        } catch (Exception e) {
+            var productInfo =
+                    productService.findOne(form.getProductId());
+
+            ProductInOrder producto =
+                    new ProductInOrder(
+                            productInfo,
+                            form.getQuantity()
+                    );
+
+            ResponseEntity<Cart> respuesta =
+                    mergeCart(
+                            Collections.singleton(producto),
+                            principal
+                    );
+
+            return respuesta.getStatusCode().is2xxSuccessful();
+
+        } catch (MyException e) {
             return false;
         }
-        return true;
     }
+
 
     @PutMapping("/{itemId}")
     public ProductInOrder modifyItem(@PathVariable("itemId") String itemId, @RequestBody Integer quantity, Principal principal) {
