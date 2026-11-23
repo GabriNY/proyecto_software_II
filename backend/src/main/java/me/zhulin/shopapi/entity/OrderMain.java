@@ -2,6 +2,8 @@ package me.zhulin.shopapi.entity;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import me.zhulin.shopapi.enums.OrderStatusEnum;
+
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.DynamicUpdate;
@@ -71,10 +73,14 @@ public class OrderMain implements Serializable {
         this.buyerName = buyer.getName();
         this.buyerPhone = buyer.getPhone();
         this.buyerAddress = buyer.getAddress();
-        this.orderAmount = buyer.getCart().getProducts().stream().map(item -> item.getProductPrice().multiply(new BigDecimal(item.getCount())))
-                .reduce(BigDecimal::add)
-                .orElse(new BigDecimal(0));
-        this.orderStatus = 0;
+        this.orderAmount = calcularTotal(buyer.getCart());
+        this.orderStatus = OrderStatusEnum.NEW.getCode();
+    }
 
+    /** Total del pedido = suma de (precio x cantidad) de cada producto del carrito. */
+    private static BigDecimal calcularTotal(Cart cart) {
+        return cart.getProducts().stream()
+                .map(item -> item.getProductPrice().multiply(BigDecimal.valueOf(item.getCount())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
