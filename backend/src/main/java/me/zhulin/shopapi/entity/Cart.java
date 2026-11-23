@@ -3,7 +3,7 @@ package me.zhulin.shopapi.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import java.util.Optional;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
@@ -44,5 +44,20 @@ public class Cart implements Serializable {
     public Cart(User user) {
         this.user  = user;
     }
+
+    /**
+     * Busca un producto dentro del carrito mediante su identificador.
+     *
+     * @param productId identificador del producto
+     * @return Optional con el producto, si existe
+     */
+    public Optional<ProductInOrder> buscarProducto(String productId) {
+
+        return products.stream()
+                .filter(producto ->
+                        productId.equals(producto.getProductId()))
+                .findFirst();
+    }
+
 
 }
